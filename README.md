@@ -41,7 +41,6 @@ JavaScript (ES6+): Lógica e dinâmica do jogo.
 🔧 Configuração e Instalação
 Clone o repositório:
 
-Bash
 
 git clone https://github.com/brusilvadev/Ultimate-CorridAZ.git
 Navegue até a pasta do projeto:
