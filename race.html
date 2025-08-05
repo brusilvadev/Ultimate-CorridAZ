@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <title>Corrida com Power-ups</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #222; font-family: sans-serif; }
+        .game-container { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+        .world { position: absolute; height: 100%; width: 12100px; background: #444; }
+        .track {
+            position: absolute; width: 100%; height: 100%;
+            background: repeating-linear-gradient(to bottom,
+                #555, #555 24.5%, #666 25%, #666 49.5%, #555 50%,
+                #555 74.5%, #666 75%, #666 100%);
+            z-index: 0;
+        }
+        .car {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-color: transparent;
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            border-radius: 8px;
+            z-index: 2;
+        }
+        .countdown, .stun-text, .powerup-label, .winner-message, .slow-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-size: 80px; z-index: 10; background-color: rgba(0, 0, 0, 0.6);
+            padding: 40px; border-radius: 20px;
+            text-align: center;
+        }
+        .stun-text { font-size: 40px; padding: 10px 20px; z-index: 20; }
+        .slow-text { font-size: 40px; padding: 10px 20px; z-index: 20; background-color: rgba(0, 100, 0, 0.6); }
+        .obstacle, .big-obstacle, .fireball, .acid-pool {
+            position: absolute; z-index: 1; background: black;
+        }
+        .obstacle { width: 30px; height: 30px; }
+        .big-obstacle { width: 60px; height: calc(2 * 25vh); background: darkred; }
+        .powerup-box { width: 30px; height: 30px; background: gold; position: absolute; z-index: 1; border-radius: 4px; }
+        .fireball { width: 20px; height: 20px; background: orange; border-radius: 50%; }
+        .acid-pool { width: 40px; height: 40px; background: #66ff66; border-radius: 50%; opacity: 0.8; }
+        .stun-animation { animation: shake 0.3s infinite; }
+        @keyframes shake {
+            0% { transform: translateY(-20px) translateX(-2px); }
+            25% { transform: translateY(-25px) translateX(2px); }
+            50% { transform: translateY(-20px) translateX(-1px); }
+            75% { transform: translateY(-25px) translateX(1px); }
+            100% { transform: translateY(-20px) translateX(0); }
+        }
+
+        .powerup-label {
+            font-size: 40px;
+            padding: 15px 30px;
+            background-color: rgba(255, 215, 0, 0.9);
+            color: black;
+            border-radius: 15px;
+            opacity: 1;
+            animation: fadeOutUp 2s forwards;
+            pointer-events: none;
+            user-select: none;
+            z-index: 30;
+        }
+        @keyframes fadeOutUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) translateY(0); }
+            100% { opacity: 0; transform: translate(-50%, -50%) translateY(-50px); }
+        }
+
+        /* Estilos para a linha de chegada */
+        .finish-line {
+            position: absolute;
+            width: 20px;
+            height: 100%;
+            background: repeating-linear-gradient(45deg, white, white 10px, black 10px, black 20px);
+            z-index: 1;
+        }
+
+        /* Estilos para o card do vencedor */
+        .winner-card {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .winner-card img {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 5px solid gold;
+        }
+
+        .winner-card h2 {
+            margin: 0;
+            color: #333;
+            font-size: 2.5em;
+        }
+
+        .winner-card button {
+            padding: 15px 30px;
+            font-size: 1.2em;
+            margin: 0 10px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            transition: background-color 0.3s ease;
+        }
+
+        .winner-card button:first-of-type {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .winner-card button:first-of-type:hover {
+            background-color: #45a049;
+        }
+
+        .winner-card button:last-of-type {
+            background-color: #008CBA;
+            color: white;
+        }
+        .winner-card button:last-of-type:hover {
+            background-color: #007bb5;
+        }
+
+        /* Estilos para o HUD */
+        .hud-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background-color: rgba(0, 0, 0, 0.6);
+            padding: 10px 20px;
+            border-radius: 10px;
+            z-index: 50;
+            color: white;
+            font-size: 20px;
+        }
+
+        .hud-item img {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        .hud-item .player-name {
+            font-weight: bold;
+        }
+
+        .powerup-box-hud {
+            width: 50px;
+            height: 50px;
+            background-color: #333;
+            border: 2px solid gold;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="world" id="world">
+            <div class="track"></div>
+            <div class="finish-line" id="finishLine"></div>
+            <div class="car" id="player"></div>
+            <div class="car bot" id="bot1"></div>
+            <div class="car bot" id="bot2"></div>
+            <div class="car bot" id="bot3"></div>
+        </div>
+
+        <div class="hud-container" id="hud">
+            <div class="hud-item">
+                <img id="hud-player-img" src="" alt="Corredor">
+            </div>
+            <div class="hud-item">
+                <span id="hud-player-name" class="player-name"></span>
+            </div>
+            <div class="hud-item">
+                <div class="powerup-box-hud" id="hud-powerup-box"></div>
+            </div>
+        </div>
+
+        <div class="countdown" id="countdown">3</div>
+        <div class="winner-message" id="winnerMessage" style="display: none;">TEMOS UM VENCEDOR!</div>
+        <div class="winner-card" id="winnerCard">
+            <img id="winnerImage" src="" alt="Vencedor">
+            <h2 id="winnerName"></h2>
+            <div>
+                <button id="restartRaceButton">Reiniciar Corrida</button>
+                <button id="chooseAnotherRunnerButton">Escolher outro corredor</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="background-audio" src="audio/Race.mp3" loop></audio>
+
+    <script>
+    const player = document.getElementById("player");
+    const bots = [document.getElementById("bot1"), document.getElementById("bot2"), document.getElementById("bot3")];
+    const countdownEl = document.getElementById("countdown");
+    const world = document.getElementById("world");
+    const finishLine = document.getElementById("finishLine");
+    const winnerMessageEl = document.getElementById("winnerMessage");
+    const winnerCardEl = document.getElementById("winnerCard");
+    const winnerImageEl = document.getElementById("winnerImage");
+    const winnerNameEl = document.getElementById("winnerName");
+    const restartRaceButton = document.getElementById("restartRaceButton");
+    const chooseAnotherRunnerButton = document.getElementById("chooseAnotherRunnerButton");
+    const backgroundAudio = document.getElementById("background-audio");
+    
+    // Elementos do HUD
+    const hudPlayerImg = document.getElementById("hud-player-img");
+    const hudPlayerName = document.getElementById("hud-player-name");
+    const hudPowerupBox = document.getElementById("hud-powerup-box");
+
+    const lanes = 4;
+    const laneHeight = window.innerHeight / lanes;
+    const trackLength = 12100;
+    const finishLineX = trackLength - 100;
+
+    let difficulty = localStorage.getItem('difficulty') || 'iniciante';
+    let botSpeedModifier;
+
+    switch(difficulty) {
+        case 'piloto':
+            botSpeedModifier = 1.2;
+            break;
+        case 'profissional':
+            botSpeedModifier = 1.5;
+            break;
+        case 'estreante':
+        default:
+            botSpeedModifier = 1.0;
+            break;
+    }
+
+    const baseSpeed = 5;
+
+    const playerState = {
+        x: 100,
+        lane: 1,
+        ref: player,
+        stunned: false,
+        intangible: false,
+        speedBonus: 0,
+        speedSlowdown: 0,
+        powerupQueue: [],
+        fireballActive: false,
+        name: "Player"
+    };
+
+
+    const botStates = bots.map((bot, i) => ({
+        x: 100,
+        baseSpeed: baseSpeed * botSpeedModifier,
+        speedBonus: 0,
+        speedSlowdown: 0,
+        lane: i === 0 ? 0 : i === 1 ? 2 : 3,
+        stunned: false,
+        stunTimer: null,
+        intangible: false,
+        intangibleTimer: null,
+        powerupQueue: [],
+        fireballActive: false,
+        ref: bot
+    }));
+
+    let keys = {
+        ArrowLeft: false,
+        ArrowRight: false,
+        ArrowUp: false,
+        ArrowDown: false,
+        Space: false
+    };
+
+    let gameStarted = false;
+    let gameFinished = false;
+
+    let obstacles = [];
+    let bigObstacles = [];
+    let powerupBoxes = [];
+    let fireballs = [];
+    let acidPools = [];
+
+    const powerupsList = [
+        {
+            name: "Velocidade",
+            type: "auto",
+            duration: 2500,
+            apply: (entity) => {
+                entity.speedBonus += 2;
+                setTimeout(() => {
+                    entity.speedBonus -= 2;
+                }, 2500);
+            },
+            emoji: "🚀"
+        },
+        {
+            name: "Intangibilidade",
+            type: "auto",
+            duration: 2500,
+            apply: (entity) => {
+                entity.intangible = true;
+                setTimeout(() => {
+                    entity.intangible = false;
+                }, 2500);
+            },
+            emoji: "🛡️"
+        },
+        {
+            name: "Bloquear pista",
+            type: "manual",
+            apply: (entity) => {
+                addBigObstacleBehind(entity);
+            },
+            emoji: "🚧"
+        },
+        {
+            name: "Bola de fogo",
+            type: "manual",
+            apply: (entity) => {
+                launchFireball(entity);
+            },
+            emoji: "🔥"
+        },
+        {
+            name: "Rajada de Fogo",
+            type: "manual",
+            apply: (entity) => {
+                launchFireball(entity, 3, 15, 5000);
+            },
+            emoji: "♨️"
+        },
+        {
+            name: "Ácido",
+            type: "manual",
+            apply: (entity) => {
+                addAcidPoolBehind(entity);
+            },
+            emoji: "🪲"
+        }
+    ];
+
+    const runnerNames = {
+        "Ale.png": "Alê",
+        "Annanda.png": "Annandinha",
+        "Samuel.png": "Samuca",
+        "Bia.png": "Bia",
+        "Bruno.png": "Bruno",
+        "Isa.png": "Isa"
+    };
+
+    const availableImages = [
+        "img/corredores/Ale.png",
+        "img/corredores/Annanda.png",
+        "img/corredores/Samuel.png",
+        "img/corredores/Bia.png",
+        "img/corredores/Bruno.png",
+        "img/corredores/Isa.png"
+    ];
+
+    function shuffleArray(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
+
+    function assignCarImages() {
+        const playerImgPath = localStorage.getItem('playerImg');
+        let usedImages = [];
+
+        if (playerImgPath) {
+            player.style.backgroundImage = `url('${playerImgPath}')`;
+            player.dataset.name = runnerNames[playerImgPath.split('/').pop()];
+            playerState.name = player.dataset.name;
+            usedImages.push(playerImgPath);
+
+            hudPlayerImg.src = playerImgPath;
+            hudPlayerName.innerText = playerState.name;
+        }
+
+        let shuffledImages = availableImages.filter(img => !usedImages.includes(img));
+        shuffleArray(shuffledImages);
+
+        bots.forEach((bot, index) => {
+            if (shuffledImages.length > 0) {
+                const botImagePath = shuffledImages.shift();
+                bot.style.backgroundImage = `url('${botImagePath}')`;
+                bot.dataset.name = runnerNames[botImagePath.split('/').pop()];
+                botStates[index].name = bot.dataset.name;
+            } else {
+                console.warn("Not enough unique images for all bots! Some bots might not have unique images.");
+            }
+        });
+    }
+
+    function updateLane(laneIndex, car) {
+        car.style.top = `${laneIndex * laneHeight + laneHeight / 2 - 20}px`;
+    }
+
+    function createInitialObstacles() {
+        for (let i = 0; i < 20; i++) {
+            const lane = Math.floor(Math.random() * lanes);
+            const x = 300 + Math.random() * (trackLength - 300 - 400);
+            const obstacle = document.createElement("div");
+            obstacle.className = "obstacle";
+            obstacle.style.left = `${x}px`;
+            obstacle.style.top = `${lane * laneHeight + laneHeight / 2 - 15}px`;
+            world.appendChild(obstacle);
+            obstacles.push({ el: obstacle, lane, x, hit: false });
+        }
+    }
+
+    function createPowerupBoxes() {
+        const totalBoxes = 30;
+        for (let i = 0; i < totalBoxes; i++) {
+            const lane = Math.floor(Math.random() * lanes);
+            const x = 400 + Math.random() * (trackLength - 400 - 350);
+            const box = document.createElement("div");
+            box.className = "powerup-box";
+            box.style.left = `${x}px`;
+            box.style.top = `${lane * laneHeight + laneHeight / 2 - 15}px`;
+            world.appendChild(box);
+            powerupBoxes.push({ el: box, lane, x, active: true });
+        }
+    }
+
+    function addBigObstacleBehind(entity) {
+        const lane = entity.lane;
+        let lanesToBlock = [];
+        if (lane === 0) lanesToBlock = [0, 1];
+        else if (lane === lanes - 1) lanesToBlock = [lanes - 2, lanes - 1];
+        else lanesToBlock = [lane - 1, lane];
+        const x = entity.x - 100;
+        lanesToBlock.forEach(l => {
+            if (l < 0 || l >= lanes) return;
+            const bigObs = document.createElement("div");
+            bigObs.className = "big-obstacle";
+            bigObs.style.left = `${x}px`;
+            bigObs.style.top = `${l * laneHeight + laneHeight / 2 - 25}px`;
+            world.appendChild(bigObs);
+            bigObstacles.push({ el: bigObs, lane: l, x, hit: false });
+        });
+    }
+
+    function launchFireball(entity, count = 1, speed = 10, stunDuration = 4000) {
+        if (entity.fireballActive) return;
+        entity.fireballActive = true;
+
+        const lanesToHit = [entity.lane];
+        if (count > 1) {
+            if (entity.lane > 0) lanesToHit.push(entity.lane - 1);
+            if (entity.lane < lanes - 1) lanesToHit.push(entity.lane + 1);
+        }
+
+        lanesToHit.forEach(lane => {
+            const fireball = document.createElement("div");
+            fireball.className = "fireball";
+            const startX = entity.x + 60;
+            const laneY = lane * laneHeight + laneHeight / 2 - 10;
+            fireball.style.left = `${startX}px`;
+            fireball.style.top = `${laneY}px`;
+            world.appendChild(fireball);
+            fireballs.push({ el: fireball, x: startX, lane, owner: entity, speed, stunDuration });
+        });
+    }
+
+    function updateFireballs() {
+        for (let i = fireballs.length - 1; i >= 0; i--) {
+            const fb = fireballs[i];
+            fb.x += fb.speed;
+            fb.el.style.left = `${fb.x}px`;
+
+            if (fb.x > trackLength) {
+                fb.el.remove();
+                if (fb.owner) fb.owner.fireballActive = false;
+                fireballs.splice(i, 1);
+                continue;
+            }
+
+            const cars = [player, ...bots];
+            let collisionOccurred = false;
+
+            cars.forEach(car => {
+                const carState = car === player ? playerState : botStates.find(b => b.ref === car);
+                if (carState === fb.owner) return;
+
+                const carX = parseFloat(car.style.left);
+                const carLane = carState.lane;
+
+                if (
+                    carLane === fb.lane &&
+                    fb.x + 20 > carX &&
+                    fb.x < carX + 60
+                ) {
+                    if (carState && !carState.intangible) {
+                        stunCar(carState.ref, carState === playerState, fb.stunDuration);
+                    }
+                    collisionOccurred = true;
+                }
+            });
+
+            if (collisionOccurred) {
+                fb.el.remove();
+                if (fb.owner) fb.owner.fireballActive = false;
+                fireballs.splice(i, 1);
+            }
+        }
+    }
+
+
+    function addAcidPoolBehind(entity) {
+        const x = entity.x - 50;
+        const lane = entity.lane;
+        const pool = document.createElement("div");
+        pool.className = "acid-pool";
+        pool.style.left = `${x}px`;
+        pool.style.top = `${lane * laneHeight + laneHeight / 2 - 20}px`;
+        world.appendChild(pool);
+        acidPools.push({ el: pool, x, lane, active: true, duration: 10000 });
+        setTimeout(() => {
+            if (pool.parentNode) {
+                pool.remove();
+                acidPools = acidPools.filter(p => p.el !== pool);
+            }
+        }, 10000);
+    }
+
+    function updateAcidPools() {
+        for (let i = acidPools.length - 1; i >= 0; i--) {
+            const pool = acidPools[i];
+            if (!pool.active) continue;
+
+            const cars = [player, ...bots];
+            cars.forEach(car => {
+                const carState = car === player ? playerState : botStates.find(b => b.ref === car);
+                const carX = parseFloat(car.style.left);
+                const carLane = carState.lane;
+
+                if (
+                    carLane === pool.lane &&
+                    carX + 40 > pool.x &&
+                    carX < pool.x + 40
+                ) {
+                    applySlowdown(carState, 2.5);
+                    pool.active = false;
+                    pool.el.remove();
+                    acidPools.splice(i, 1);
+                }
+            });
+        }
+    }
+    
+    function applySlowdown(entity, duration) {
+        if (entity.slowed) return;
+        entity.slowed = true;
+        entity.speedSlowdown = 2;
+
+        const slowText = document.createElement("div");
+        slowText.className = "slow-text";
+        slowText.innerText = "Lento!";
+        document.body.appendChild(slowText);
+
+        const rect = entity.ref.getBoundingClientRect();
+        slowText.style.top = `${rect.top - 60}px`;
+        slowText.style.left = `${rect.left + 20}px`;
+
+        setTimeout(() => {
+            entity.slowed = false;
+            entity.speedSlowdown = 0;
+            slowText.remove();
+        }, duration * 1000);
+    }
+
+
+    function stunCar(car, isPlayer, duration = 2500) {
+        const targetState = isPlayer ? playerState : botStates.find(b => b.ref === car);
+
+        if (!targetState || targetState.intangible || targetState.stunned) return;
+
+        targetState.stunned = true;
+
+        const stunText = document.createElement("div");
+        stunText.className = "stun-text";
+        stunText.innerText = "Atordoado";
+        document.body.appendChild(stunText);
+
+        const rect = car.getBoundingClientRect();
+        stunText.style.top = `${rect.top - 60}px`;
+        stunText.style.left = `${rect.left + 20}px`;
+
+        car.classList.add("stun-animation");
+
+        setTimeout(() => {
+            if (targetState) targetState.stunned = false;
+            car.classList.remove("stun-animation");
+            stunText.remove();
+        }, duration);
+    }
+
+    function updateCarPosition(car, x, lane) {
+        car.style.left = `${x}px`;
+        car.style.top = `${lane * laneHeight + laneHeight / 2 - 20}px`;
+    }
+
+    function detectObstacleCollision(x, lane) {
+        return obstacles.find(o => !o.hit && o.lane === lane && Math.abs(x - o.x) < 40);
+    }
+
+    function detectBigObstacleCollision(x, lane) {
+        return bigObstacles.find(o => !o.hit && o.lane === lane && Math.abs(x - o.x) < 40);
+    }
+    
+    function detectAcidPoolCollision(x, lane) {
+        return acidPools.find(p => p.active && p.lane === lane && Math.abs(x - p.x) < 40);
+    }
+
+
+    function detectPowerupCollision(x, lane) {
+        return powerupBoxes.find(p => p.active && p.lane === lane && Math.abs(x - p.x) < 40);
+    }
+
+    function showPowerupLabel(text) {
+        const label = document.createElement("div");
+        label.className = "powerup-label";
+        label.innerText = text;
+        document.body.appendChild(label);
+        setTimeout(() => {
+            label.remove();
+        }, 2000);
+    }
+
+    function updateHudPowerup(powerup) {
+        if (powerup) {
+            hudPowerupBox.innerText = powerup.emoji;
+        } else {
+            hudPowerupBox.innerText = "";
+        }
+    }
+
+    function collectPowerup(entity, powerup) {
+        if (powerup.type === "auto") {
+            // Apenas Velocidade se acumula
+            if (powerup.name === "Velocidade") {
+                powerup.apply(entity);
+            } else {
+                // Outros power-ups automáticos são aplicados imediatamente, mas não substituem os manuais
+                powerup.apply(entity);
+            }
+
+            if (entity === playerState) {
+                // Exibe o power-up coletado no HUD
+                updateHudPowerup(powerup);
+                setTimeout(() => {
+                    // Após a duração, remove o ícone do HUD se não houver outro power-up ativo
+                    if (playerState.powerupQueue.length === 0) {
+                        updateHudPowerup(null);
+                    }
+                }, powerup.duration);
+            }
+
+        } else if (powerup.type === "manual") {
+            // Zera a fila de power-ups manuais para não serem cumulativos
+            entity.powerupQueue = [powerup];
+
+            if (entity === playerState) {
+                updateHudPowerup(powerup);
+            }
+        }
+        
+        if (entity === playerState) {
+            showPowerupLabel(powerup.name);
+        }
+    }
+
+    function tryActivatePlayerPowerup() {
+        if (playerState.powerupQueue.length === 0) return;
+        const powerup = playerState.powerupQueue.shift();
+        powerup.apply(playerState);
+        updateHudPowerup(playerState.powerupQueue.length > 0 ? playerState.powerupQueue[0] : null);
+    }
+
+    function botsTryActivatePowerup() {
+        botStates.forEach(bot => {
+            if (!bot.stunned && bot.powerupQueue.length > 0) {
+                for (let i = 0; i < bot.powerupQueue.length; i++) {
+                    const powerup = bot.powerupQueue[i];
+                    if (powerup.type === "manual" && Math.random() < 0.01) {
+                        bot.powerupQueue.splice(i, 1);
+                        powerup.apply(bot);
+                        break;
+                    }
+                }
+            }
+        });
+    }
+
+    function updatePlayerMovement() {
+        if (playerState.stunned || gameFinished) return;
+
+        const currentSpeed = baseSpeed + playerState.speedBonus - playerState.speedSlowdown;
+
+        if (keys.ArrowLeft) playerState.x -= currentSpeed;
+        if (keys.ArrowRight) playerState.x += currentSpeed;
+
+        playerState.x = Math.max(0, Math.min(playerState.x, trackLength - 60));
+
+        if (keys.ArrowUp && playerState.lane > 0) {
+            playerState.lane--;
+            keys.ArrowUp = false;
+        }
+        if (keys.ArrowDown && playerState.lane < lanes - 1) {
+            playerState.lane++;
+            keys.ArrowDown = false;
+        }
+    }
+
+    function updateBotsMovement() {
+        if (gameFinished) return;
+
+        botStates.forEach(bot => {
+            if (bot.stunned) return;
+            const currentSpeed = bot.baseSpeed + bot.speedBonus - bot.speedSlowdown;
+            bot.x += currentSpeed;
+            bot.x = Math.min(bot.x, trackLength - 60);
+
+            if (Math.random() < 0.01) {
+                if (Math.random() < 0.5 && bot.lane > 0) bot.lane--;
+                else if (bot.lane < lanes - 1) bot.lane++;
+            }
+        });
+    }
+
+    function updateObstacles() {
+        if (gameFinished) return;
+        // Player collision
+        if (!playerState.stunned && !playerState.intangible) {
+            let obs = detectObstacleCollision(playerState.x, playerState.lane);
+            if (obs && !obs.hit) {
+                stunCar(player, true);
+                obs.el.remove();
+                obs.hit = true;
+            }
+            let bigObs = detectBigObstacleCollision(playerState.x, playerState.lane);
+            if (bigObs && !bigObs.hit) {
+                stunCar(player, true);
+                bigObs.el.remove();
+                bigObs.hit = true;
+            }
+            let acid = detectAcidPoolCollision(playerState.x, playerState.lane);
+            if (acid && acid.active) {
+                applySlowdown(playerState, 2.5);
+                acid.el.remove();
+                acid.active = false;
+                acidPools = acidPools.filter(p => p.el !== acid.el);
+            }
+        }
+        // Bots collision
+        botStates.forEach(bot => {
+            if (!bot.stunned && !bot.intangible) {
+                let obs = detectObstacleCollision(bot.x, bot.lane);
+                if (obs && !obs.hit) {
+                    stunCar(bot.ref, false);
+                    obs.el.remove();
+                    obs.hit = true;
+                }
+                let bigObs = detectBigObstacleCollision(bot.x, bot.lane);
+                if (bigObs && !bigObs.hit) {
+                    stunCar(bot.ref, false);
+                    bigObs.el.remove();
+                    bigObs.hit = true;
+                }
+                let acid = detectAcidPoolCollision(bot.x, bot.lane);
+                if (acid && acid.active) {
+                    applySlowdown(bot, 2.5);
+                    acid.el.remove();
+                    acid.active = false;
+                    acidPools = acidPools.filter(p => p.el !== acid.el);
+                }
+            }
+        });
+    }
+
+    function updatePowerupBoxes() {
+        if (gameFinished) return;
+        // Player collects
+        let box = detectPowerupCollision(playerState.x, playerState.lane);
+        if (box && box.active) {
+            box.active = false;
+            box.el.remove();
+            const powerup = powerupsList[Math.floor(Math.random() * powerupsList.length)];
+            collectPowerup(playerState, powerup);
+        }
+        // Bots collect
+        botStates.forEach(bot => {
+            let box = detectPowerupCollision(bot.x, bot.lane);
+            if (box && box.active) {
+                box.active = false;
+                box.el.remove();
+                const powerup = powerupsList[Math.floor(Math.random() * powerupsList.length)];
+                collectPowerup(bot, powerup);
+            }
+        });
+    }
+
+    function updatePositions() {
+        updateCarPosition(player, playerState.x, playerState.lane);
+        botStates.forEach(bot => {
+            updateCarPosition(bot.ref, bot.x, bot.lane);
+        });
+    }
+
+    function updateCamera() {
+        const viewportWidth = window.innerWidth;
+        let camX = playerState.x - viewportWidth / 3;
+        camX = Math.max(0, Math.min(camX, trackLength - viewportWidth));
+        world.style.left = `-${camX}px`;
+    }
+
+    function checkFinishLineCollision() {
+        if (gameFinished) return;
+
+        const playersAndBots = [playerState, ...botStates];
+
+        for (const entity of playersAndBots) {
+            if (entity.x >= finishLineX) {
+                gameFinished = true;
+                showWinner(entity);
+                break;
+            }
+        }
+    }
+
+    function showWinner(winner) {
+        winnerMessageEl.style.display = "block";
+        document.removeEventListener("keydown", handleKeyDown);
+        document.removeEventListener("keyup", handleKeyUp);
+        
+        hudPowerupBox.innerText = "";
+        backgroundAudio.pause();
+        backgroundAudio.currentTime = 0;
+
+        playerState.powerupQueue = [];
+        playerState.stunned = false;
+        playerState.intangible = false;
+        playerState.speedBonus = 0;
+        playerState.speedSlowdown = 0;
+
+        setTimeout(() => {
+            winnerMessageEl.style.display = "none";
+            displayWinnerCard(winner);
+        }, 1500);
+    }
+
+    function displayWinnerCard(winner) {
+        const winnerImagePath = winner.ref.style.backgroundImage.replace(/url\(['"]?(.*?)['"]?\)/, '$1');
+        winnerImageEl.src = winnerImagePath;
+        winnerNameEl.innerText = winner.name;
+        winnerCardEl.style.display = "flex";
+    }
+
+    function gameLoop() {
+        if (!gameStarted || gameFinished) {
+            requestAnimationFrame(gameLoop);
+            return;
+        }
+        updatePlayerMovement();
+        updateBotsMovement();
+        botsTryActivatePowerup();
+        updateObstacles();
+        updatePowerupBoxes();
+        updateFireballs();
+        updateAcidPools();
+        updatePositions();
+        updateCamera();
+        checkFinishLineCollision();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function handleKeyDown(e) {
+        if (gameFinished) return;
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code)) {
+            keys[e.code] = true;
+        }
+        if (e.code === "Space") {
+            if (playerState.powerupQueue.length > 0 && !playerState.stunned) {
+                tryActivatePlayerPowerup();
+            }
+        }
+    }
+
+    function handleKeyUp(e) {
+        if (gameFinished) return;
+        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.code)) {
+            keys[e.code] = false;
+        }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    restartRaceButton.addEventListener("click", () => {
+        location.reload();
+    });
+
+    chooseAnotherRunnerButton.addEventListener("click", () => {
+        window.location.href = "select.html";
+    });
+
+    function startCountdown() {
+        let count = 3;
+        countdownEl.innerText = count;
+        countdownEl.style.display = "block";
+        const interval = setInterval(() => {
+            count--;
+            if (count > 0) countdownEl.innerText = count;
+            else if (count === 0) countdownEl.innerText = "Já!";
+            else {
+                countdownEl.style.display = "none";
+                gameStarted = true;
+                backgroundAudio.play().catch(error => {
+                    console.error("Erro ao tentar tocar o áudio:", error);
+                });
+                clearInterval(interval);
+                requestAnimationFrame(gameLoop);
+            }
+        }, 1000);
+    }
+
+    // Inicialização
+    assignCarImages();
+    createInitialObstacles();
+    createPowerupBoxes();
+    updateCarPosition(player, playerState.x, playerState.lane);
+    botStates.forEach(bot => updateCarPosition(bot.ref, bot.x, bot.lane));
+
+    finishLine.style.left = `${finishLineX}px`;
+
+    startCountdown();
+</script>
+</body>
+</html>

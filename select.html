@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+ <meta charset="UTF-8">
+ <title>Seleção de Personagem</title>
+ <style>
+   * {
+     box-sizing: border-box;
+   }
+
+   body {
+     margin: 0;
+     font-family: Arial, sans-serif;
+     background-color: #33B5FF;
+     color: white;
+   }
+
+   header {
+     display: flex;
+     align-items: center;
+     padding: 20px;
+   }
+
+   header img {
+     height: 50px;
+     margin-right: 15px;
+   }
+
+   header h1 {
+     font-size: 28px;
+     margin: 0;
+   }
+
+   main {
+     display: flex;
+     justify-content: space-between;
+     align-items: flex-start;
+     padding: 20px 40px;
+   }
+
+   .left-panel {
+     width: 50%;
+   }
+
+   .grid {
+     display: grid;
+     grid-template-columns: repeat(3, 1fr);
+     gap: 20px;
+   }
+
+   .character-thumb {
+     width: 100%;
+     cursor: pointer;
+     border-radius: 12px;
+     border: 3px solid transparent;
+     transition: border-color 0.3s;
+   }
+
+   .character-thumb:hover,
+   .character-thumb.selected {
+     border-color: white;
+   }
+
+   .right-panel {
+     width: 45%;
+     display: flex;
+     flex-direction: column;
+     align-items: center;
+     justify-content: center;
+   }
+
+   .character-name {
+     font-size: 2rem;
+     margin-bottom: 20px;
+     text-shadow: 1px 1px 5px black;
+   }
+
+   .character-display img {
+     max-width: 100%;
+     max-height: 60vh;
+     border-radius: 12px;
+     box-shadow: 0 0 20px rgba(0,0,0,0.5);
+   }
+
+   .difficulty-buttons {
+     display: flex;
+     justify-content: center;
+     gap: 20px;
+     margin-top: 20px;
+   }
+
+   .difficulty-button {
+     padding: 12px 24px;
+     font-size: 1.1rem;
+     border: none;
+     border-radius: 8px;
+     background-color: #ffffff;
+     color: #0077cc;
+     cursor: pointer;
+     transition: background-color 0.3s;
+   }
+
+   .difficulty-button.selected {
+     background-color: #0077cc;
+     color: #ffffff;
+     box-shadow: 0 0 10px rgba(0,0,0,0.5);
+   }
+
+   .difficulty-button:hover:not(.selected) {
+     background-color: #eee;
+   }
+
+   .confirm-button {
+     margin-top: 30px;
+     padding: 12px 24px;
+     font-size: 1.1rem;
+     border: none;
+     border-radius: 8px;
+     background-color: #ffffff;
+     color: #0077cc;
+     cursor: pointer;
+     transition: background-color 0.3s;
+     display: none;
+   }
+
+   .confirm-button:hover {
+     background-color: #eee;
+   }
+
+   .hidden {
+     display: none;
+   }
+ </style>
+</head>
+<body>
+ <header>
+   <img src="img/logo.png" alt="Logo">
+   <h1>Seleção de Personagens</h1>
+ </header>
+
+ <main>
+   <div class="left-panel">
+     <div class="grid">
+       <img class="character-thumb" src="img/select/Ale_Select.png" data-name="Alê" data-img="img/corredores/Ale.png">
+       <img class="character-thumb" src="img/select/Anandinha_Select.png" data-name="Annandinha" data-img="img/corredores/Annanda.png">
+       <img class="character-thumb" src="img/select/Bia_Select.png" data-name="Bia" data-img="img/corredores/Bia.png">
+       <img class="character-thumb" src="img/select/Bruno_Select.png" data-name="Bruno" data-img="img/corredores/Bruno.png">
+       <img class="character-thumb" src="img/select/Isa_Select.png" data-name="Isa" data-img="img/corredores/Isa.png">
+       <img class="character-thumb" src="img/select/Samuca_Select.png" data-name="Samuca" data-img="img/corredores/Samuel.png">
+     </div>
+   </div>
+
+   <div class="right-panel" id="character-display">
+   </div>
+ </main>
+  
+ <audio id="background-audio" src="audio/Select.mp3" loop></audio>
+
+ <script>
+   const thumbs = document.querySelectorAll('.character-thumb');
+   const display = document.getElementById('character-display');
+   const backgroundAudio = document.getElementById('background-audio');
+   let selectedPlayerImgPath = "";
+   let selectedDifficulty = "";
+   let audioStarted = false; // Variável de controle para tocar o áudio apenas uma vez
+
+   function displayCharacter(name, imgPath) {
+     display.innerHTML = `
+       <div class="character-display">
+         <img src="${imgPath}" alt="${name}">
+       </div>
+       <h2 class="character-name">${name}</h2>
+       <div class="difficulty-buttons">
+         <button class="difficulty-button" data-difficulty="estreante">Estreante</button>
+         <button class="difficulty-button" data-difficulty="piloto">Piloto</button>
+         <button class="difficulty-button" data-difficulty="profissional">Profissional</button>
+       </div>
+       <button class="confirm-button">Começar Corrida</button>
+     `;
+
+     // Adiciona os event listeners aos botões de dificuldade e ao botão de confirmação
+     const difficultyButtons = document.querySelectorAll('.difficulty-button');
+     const confirmButton = document.querySelector('.confirm-button');
+
+     difficultyButtons.forEach(button => {
+       button.addEventListener('click', () => {
+         difficultyButtons.forEach(btn => btn.classList.remove('selected'));
+         button.classList.add('selected');
+         selectedDifficulty = button.getAttribute('data-difficulty');
+         confirmButton.style.display = 'block';
+       });
+     });
+
+     confirmButton.addEventListener('click', () => {
+       if (selectedPlayerImgPath && selectedDifficulty) {
+         localStorage.setItem('playerImg', selectedPlayerImgPath);
+         localStorage.setItem('difficulty', selectedDifficulty);
+         window.location.href = "race.html";
+       }
+     });
+   }
+
+   thumbs.forEach(thumb => {
+     thumb.addEventListener('click', () => {
+       // Inicia o áudio na primeira interação do usuário
+       if (!audioStarted) {
+         backgroundAudio.play().catch(error => {
+           console.error("Erro ao tentar tocar o áudio:", error);
+         });
+         audioStarted = true;
+       }
+
+       thumbs.forEach(t => t.classList.remove('selected'));
+       thumb.classList.add('selected');
+       const name = thumb.getAttribute('data-name');
+       const imgPath = thumb.getAttribute('data-img');
+       selectedPlayerImgPath = imgPath;
+       displayCharacter(name, imgPath);
+     });
+   });
+ </script>
+</body>
+</html>
