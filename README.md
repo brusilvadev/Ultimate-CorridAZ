@@ -43,11 +43,10 @@ Clone o repositório:
 
 Bash
 
-git clone https://github.com/seu-usuario/corrida-powerups.git
+git clone https://github.com/brusilvadev/Ultimate-CorridAZ.git
 Navegue até a pasta do projeto:
 
-Bash
 
-cd corrida-powerups
+cd Ultimate-CorridAZ
 Abra o arquivo index.html no seu navegador. Não é necessário servidor web.
 
