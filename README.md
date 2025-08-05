@@ -1,5 +1,4 @@
 # Ultimate-CorridAZ
-Jogo de navegador de corrida com seleção de personagens e power upps
 🎮 Corrida com Power-ups
 Um jogo de corrida 2D divertido e competitivo, desenvolvido em JavaScript puro, HTML e CSS. Escolha seu corredor e prepare-se para uma corrida cheia de obstáculos e power-ups para sabotar seus oponentes!
 
