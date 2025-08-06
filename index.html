@@ -14,11 +14,12 @@
     }
 
     body {
-      background: url('img/Menu.png') no-repeat center ;
+      background: url('img/Menu.png') no-repeat center;
       background-size: cover;
       display: flex;
       justify-content: center;
       align-items: flex-end;
+      position: relative;
     }
 
     .message {
@@ -29,34 +30,127 @@
       padding: 15px 30px;
       border-radius: 10px;
       animation: blink 1.5s infinite;
+      z-index: 1;
     }
 
     @keyframes blink {
       0%, 100% { opacity: 1; }
       50% { opacity: 0.5; }
     }
+
+    .overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .popup {
+      background: #fff;
+      padding: 40px 30px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 500px;
+      box-shadow: 0 0 20px #000;
+    }
+
+    .popup h2 {
+      margin-top: 0;
+      font-size: 2rem;
+      color: #333;
+    }
+
+    .popup .instructions {
+      font-size: 1.1rem;
+      color: #444;
+      text-align: left;
+      margin-top: 20px;
+      line-height: 1.8;
+    }
+
+    .popup .instructions span {
+      font-weight: bold;
+      color: #000;
+    }
+
+    .popup .icons {
+      font-size: 1.5rem;
+      margin-right: 8px;
+    }
+
+    .popup button {
+      margin-top: 30px;
+      padding: 12px 30px;
+      font-size: 1.1rem;
+      background-color: #1e90ff;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .popup button:hover {
+      background-color: #007acc;
+    }
   </style>
 </head>
 <body>
   <div class="message">Pressione "Espaço" para começar</div>
-  
+
+  <div class="overlay" id="overlay">
+    <div class="popup">
+      <h2>Como Jogar</h2>
+      <div class="instructions">
+        <p><span class="icons">⬆️⬇️⬅️➡️</span> Utilize as <span>setas</span> para se mover.</p>
+        <p><span class="icons">␣</span> Pressione <span>barra de espaço</span> para ativar o power-up manual.</p>
+        <p><span class="icons">🎁</span> Colete <span>caixinhas douradas</span> na pista para ganhar poderes.</p>
+        <p><span class="icons">🚀</span> Use os <span>power-ups</span> com estratégia para vencer seus oponentes!</p>
+        <p><span class="icons">⚠️</span> Cuidado com <span>obstáculos</span> na pista!</p>
+      </div>
+      <button onclick="irParaSelect()">Continuar</button>
+    </div>
+  </div>
+
   <audio id="background-audio" src="audio/Main_Menu.mp3" loop></audio>
 
   <script>
     const backgroundAudio = document.getElementById('background-audio');
+    const overlay = document.getElementById('overlay');
+    let musicaIniciada = false;
+
+    function iniciarMusica() {
+      if (!musicaIniciada) {
+        backgroundAudio.play().catch((e) => {
+          console.warn("Autoplay bloqueado:", e);
+        });
+        musicaIniciada = true;
+      }
+    }
 
     document.addEventListener('keydown', function (event) {
+      iniciarMusica();
+
       if (event.code === 'Space') {
-        // Toca a música e então redireciona a página
-        backgroundAudio.play().then(() => {
-          window.location.href = 'select.html';
-        }).catch(error => {
-          console.error("Erro ao tentar tocar o áudio:", error);
-          // Redireciona mesmo se houver um erro, para não travar o fluxo
-          window.location.href = 'select.html';
-        });
+        event.preventDefault();
+        overlay.style.display = 'flex';
       }
     });
+
+    document.addEventListener('click', iniciarMusica); // caso o usuário clique em vez de apertar tecla
+
+    function irParaSelect() {
+      backgroundAudio.play().then(() => {
+        window.location.href = 'select.html';
+      }).catch(error => {
+        console.error("Erro ao tentar tocar o áudio:", error);
+        window.location.href = 'select.html';
+      });
+    }
   </script>
 </body>
 </html>
