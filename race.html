@@ -364,7 +364,8 @@
         "Samuel.png": "Samuca",
         "Bia.png": "Bia",
         "Bruno.png": "Bruno",
-        "Isa.png": "Isa"
+        "Isa.png": "Isa",
+        "Rafa.png": "Rafa"
     };
 
     const availableImages = [
@@ -373,7 +374,8 @@
         "img/corredores/Samuel.png",
         "img/corredores/Bia.png",
         "img/corredores/Bruno.png",
-        "img/corredores/Isa.png"
+        "img/corredores/Isa.png",
+        "img/corredores/Rafa.png"
     ];
 
     function shuffleArray(array) {
@@ -563,7 +565,7 @@
                     applySlowdown(carState, 2.5);
                     pool.active = false;
                     pool.el.remove();
-                    acidPools.splice(i, 1);
+                    acidPools = acidPools.filter(p => p.el !== pool);
                 }
             });
         }
